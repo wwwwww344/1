@@ -6,7 +6,23 @@ import tkinter as tk
 import time
 from PyQt5.QtCore import Qt, QTimer
 from gui import MammoAnalysisApp
+import subprocess
+if sys.platform.startswith('win'):
+    try:
+        # 适用于Python 3.7及以下版本
+        from subprocess import _subprocess as winprocess
+        CREATE_NO_WINDOW = 0x08000000
+    except ImportError:
+        # 适用于Python 3.8及以上版本
+        from subprocess import CREATE_NO_WINDOW
 
+    # 应用标志到所有子进程
+    old_Popen = subprocess.Popen
+    def _Popen(*args, **kwargs):
+        kwargs.setdefault('creationflags', 0)
+        kwargs['creationflags'] |= CREATE_NO_WINDOW
+        return old_Popen(*args, **kwargs)
+    subprocess.Popen = _Popen
 if __name__ == "__main__":
     # 创建应用实例
     app = QApplication(sys.argv)

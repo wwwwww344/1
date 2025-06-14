@@ -3,3 +3,5 @@ opencv-python
 scikit-learn
 numpy
 pillow
+scikit-image
+matplotlib
