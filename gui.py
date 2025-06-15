@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QLabel, QPushButton, QFileDia
                              QVBoxLayout, QHBoxLayout, QSpinBox, QProgressBar, QGroupBox,
                              QApplication, QMessageBox)
 from PyQt5.QtGui import QIcon, QImage, QPixmap, QFont
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 import processing
 from datetime import datetime
 
@@ -42,7 +42,6 @@ class MammoAnalysisApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("乳腺钼靶图像分析系统")
-        self.setGeometry(100, 100, 1200, 800)
         self.original_img = None
         self.highlighted_img = None
         self.image_path = None
@@ -50,6 +49,9 @@ class MammoAnalysisApp(QMainWindow):
         
         # 初始化UI
         self.init_ui()
+        
+        # 5秒后自动全屏
+        QTimer.singleShot(5000, self.show_full_screen)
 
     def init_ui(self):
         """初始化用户界面"""
@@ -71,13 +73,14 @@ class MammoAnalysisApp(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
 
-        # 左侧控制面板
+        # 左侧控制面板 - 使用百分比布局确保全屏适配
         control_panel = QGroupBox("控制面板")
         control_layout = QVBoxLayout(control_panel)
+        control_panel.setMinimumWidth(300)  # 设置最小宽度防止布局过窄
 
         # 图像选择
         self.btn_open = QPushButton("选择乳腺图像")
-        self.btn_open.setIcon(QIcon.fromTheme("document-open"))  # 单独设置图标
+        self.btn_open.setIcon(QIcon.fromTheme("document-open"))
         self.btn_open.clicked.connect(self.open_image)
         control_layout.addWidget(self.btn_open)
 
@@ -140,7 +143,6 @@ class MammoAnalysisApp(QMainWindow):
         # 原始图像
         image_layout.addWidget(QLabel("原始图像"))
         self.original_label = QLabel()
-        self.original_label.setMinimumSize(512, 512)
         self.original_label.setAlignment(Qt.AlignCenter)
         self.original_label.setStyleSheet("""
             border: 2px solid #1f6feb; border-radius: 5px; 
@@ -152,7 +154,6 @@ class MammoAnalysisApp(QMainWindow):
         # 分析结果图像
         image_layout.addWidget(QLabel("分析结果"))
         self.result_image_label = QLabel()
-        self.result_image_label.setMinimumSize(512, 512)
         self.result_image_label.setAlignment(Qt.AlignCenter)
         self.result_image_label.setStyleSheet("""
             border: 2px solid #1f6feb; border-radius: 5px; 
@@ -161,9 +162,16 @@ class MammoAnalysisApp(QMainWindow):
         self.result_image_label.setText("等待分析结果")
         image_layout.addWidget(self.result_image_label)
 
-        # 添加到主布局
-        main_layout.addWidget(control_panel, 1)
-        main_layout.addWidget(image_panel, 2)
+        # 添加到主布局 - 左侧占30%，右侧占70%
+        main_layout.addWidget(control_panel, 3)
+        main_layout.addWidget(image_panel, 7)
+
+    def show_full_screen(self):
+        """显示全屏界面"""
+        self.showFullScreen()
+        # 调整图像显示区域的最小尺寸以适应全屏
+        self.original_label.setMinimumSize(800, 800)
+        self.result_image_label.setMinimumSize(800, 800)
 
     def open_image(self):
         """打开图像文件"""
@@ -206,14 +214,18 @@ class MammoAnalysisApp(QMainWindow):
             self.result_label.setText(f"错误：{str(e)}")
             QMessageBox.critical(self, "错误", f"加载图像失败: {str(e)}")
 
-    def display_image(self, img, label, max_size=800):
-        """使用用户提供的辅助函数准备并显示图像"""
+    def display_image(self, img, label, max_size=None):
+        """使用用户提供的辅助函数准备并显示图像，支持全屏自适应"""
         if img is None:
             label.setText("图像加载失败")
             return
         
         # 使用用户提供的函数准备图像
         display_img = utils.prepare_image_for_display(img)
+        
+        # 全屏模式下动态计算最大尺寸
+        if max_size is None:
+            max_size = min(label.width(), label.height()) - 50
         
         # 自适应缩放
         h, w = display_img.shape[:2]
@@ -278,6 +290,8 @@ class MammoAnalysisApp(QMainWindow):
             self.progress.setVisible(False)
             self.btn_process.setEnabled(True)
             self.btn_open.setEnabled(True)
+            # 分析完成后确保全屏显示
+            self.show_full_screen()
 
     def on_analysis_error(self, error_msg):
         """分析错误回调"""
